@@ -19,6 +19,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/aybabtme/iocontrol"
 	gzip "github.com/klauspost/pgzip"
 )
 
@@ -28,6 +29,7 @@ type itimeout interface {
 type Request struct {
 	headers           []headerTuple
 	cookies           []*http.Cookie
+	Limited           int
 	Method            string
 	Uri               string
 	Body              interface{}
@@ -454,11 +456,12 @@ func (r Request) NewRequest() (*http.Request, error) {
 			pw.Close()
 		}()
 		bodyReader = buffer
+
 	} else {
 		bodyReader = b
 	}
-
-	req, err := http.NewRequest(r.Method, r.Uri, bodyReader)
+	throttled := iocontrol.ThrottledReader(bodyReader, r.Limited*iocontrol.KiB, 10*time.Millisecond)
+	req, err := http.NewRequest(r.Method, r.Uri, throttled)
 	if err != nil {
 		return nil, err
 	}
