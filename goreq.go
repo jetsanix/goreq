@@ -460,7 +460,12 @@ func (r Request) NewRequest() (*http.Request, error) {
 	} else {
 		bodyReader = b
 	}
-	throttled := iocontrol.ThrottledReader(bodyReader, r.Limited*iocontrol.KiB, 10*time.Millisecond)
+	var throttled io.Reader
+	if r.Limited < 1 {
+		throttled = bodyReader
+	} else {
+		throttled = iocontrol.ThrottledReader(bodyReader, r.Limited*iocontrol.KiB, 10*time.Millisecond)
+	}
 	req, err := http.NewRequest(r.Method, r.Uri, throttled)
 	if err != nil {
 		return nil, err
